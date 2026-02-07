@@ -736,6 +736,10 @@ def main():
                 for folder in sorted(folders_in_board):
                     folder_items = board_detail_data[board_detail_data['folder_name'] == folder]
 
+                    # Skip empty folders
+                    if len(folder_items) == 0:
+                        continue
+
                     # Calculate folder metrics
                     folder_est = folder_items['estimated_seconds'].sum()
                     folder_act = folder_items['actual_seconds'].sum()
@@ -966,11 +970,18 @@ def main():
                         return  # Skip folders with no items and no children
 
                     # Calculate metrics for ALL items (including descendants)
-                    folder_est = folder_items['estimated_seconds'].sum()
-                    folder_act = folder_items['actual_seconds'].sum()
-                    folder_var = folder_act - folder_est
-                    folder_completed = len(folder_items[folder_items['completed_at'].notna()])
-                    folder_total = len(folder_items)
+                    if len(folder_items) > 0:
+                        folder_est = folder_items['estimated_seconds'].sum()
+                        folder_act = folder_items['actual_seconds'].sum()
+                        folder_var = folder_act - folder_est
+                        folder_completed = len(folder_items[folder_items['completed_at'].notna()])
+                        folder_total = len(folder_items)
+                    else:
+                        folder_est = 0
+                        folder_act = 0
+                        folder_var = 0
+                        folder_completed = 0
+                        folder_total = 0
 
                     # Create indentation based on level
                     indent = "　" * level  # Using full-width space for indentation
@@ -1152,10 +1163,16 @@ def main():
                             direct_df = match['direct_items']
 
                             # Calculate metrics for all items
-                            folder_est = items_df['estimated_seconds'].sum()
-                            folder_act = items_df['actual_seconds'].sum()
-                            folder_completed = len(items_df[items_df['completed_at'].notna()])
-                            folder_total = len(items_df)
+                            if len(items_df) > 0:
+                                folder_est = items_df['estimated_seconds'].sum()
+                                folder_act = items_df['actual_seconds'].sum()
+                                folder_completed = len(items_df[items_df['completed_at'].notna()])
+                                folder_total = len(items_df)
+                            else:
+                                folder_est = 0
+                                folder_act = 0
+                                folder_completed = 0
+                                folder_total = 0
 
                             # Calculate metrics for direct items
                             direct_est = direct_df['estimated_seconds'].sum() if len(direct_df) > 0 else 0
