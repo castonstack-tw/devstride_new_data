@@ -334,6 +334,9 @@ def main():
     # Apply filters
     filtered_workitems = df_workitems.copy()
 
+    # Exclude archived workitems
+    filtered_workitems = filtered_workitems[filtered_workitems['archived'] != True]
+
     # Date filter
     filtered_workitems = filtered_workitems[
         (filtered_workitems['date_added'].dt.date >= start_date) &
