@@ -604,7 +604,8 @@ def main():
         budget_data['work_type_name'] = budget_data['work_type_id'].map(work_type_names)
 
         # Convert estimates from hours to seconds for comparison
-        budget_data['estimated_seconds'] = budget_data['likely_estimate'] * 3600
+        # Handle NULL values in likely_estimate
+        budget_data['estimated_seconds'] = budget_data['likely_estimate'].fillna(0) * 3600
         budget_data['actual_seconds'] = budget_data['time_spent_seconds'].fillna(0)
         budget_data['variance_seconds'] = budget_data['actual_seconds'] - budget_data['estimated_seconds']
         budget_data['variance_pct'] = budget_data.apply(
