@@ -1713,8 +1713,10 @@ def main():
         ]['item_number'].unique()
 
         # Get recent comments (last 3 days)
+        # Convert three_days_ago to timezone-naive for comparison with comments
+        three_days_ago_naive = three_days_ago.tz_localize(None) if hasattr(three_days_ago, 'tz_localize') else three_days_ago.replace(tzinfo=None)
         recent_comments = df_comments[
-            pd.to_datetime(df_comments['date_added']) >= three_days_ago
+            pd.to_datetime(df_comments['date_added']) >= three_days_ago_naive
         ]['item_number'].unique()
 
         # Find stale items: no update in last 3 days AND no time logged AND no comments in last 3 days
