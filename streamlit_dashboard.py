@@ -15,6 +15,106 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Professional styling
+st.markdown("""
+<style>
+    /* Main dashboard styling */
+    .main {
+        background-color: #f8f9fa;
+    }
+
+    /* Custom header styling */
+    .dashboard-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 2rem;
+        border-radius: 10px;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Metric cards */
+    [data-testid="stMetricValue"] {
+        font-size: 2rem;
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    [data-testid="stMetricLabel"] {
+        font-size: 0.95rem;
+        font-weight: 500;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* Tab styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: white;
+        border-radius: 10px;
+        padding: 10px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        padding: 0 24px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        color: #475569;
+        font-weight: 500;
+    }
+
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white !important;
+        font-weight: 600;
+    }
+
+    /* Sidebar styling */
+    [data-testid="stSidebar"] {
+        background-color: #ffffff;
+        border-right: 1px solid #e2e8f0;
+    }
+
+    /* Data tables */
+    .dataframe thead tr th {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white !important;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+        padding: 12px !important;
+    }
+
+    .dataframe tbody tr:nth-child(even) {
+        background-color: #f8f9fa;
+    }
+
+    .dataframe tbody tr:hover {
+        background-color: #e2e8f0;
+    }
+
+    /* Section headers */
+    h2 {
+        color: #1e293b;
+        border-bottom: 3px solid #667eea;
+        padding-bottom: 0.5rem;
+        margin-top: 2rem;
+    }
+
+    /* Buttons */
+    .stDownloadButton button {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.5rem 2rem;
+        font-weight: 600;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # Database connection
 @st.cache_resource
 def get_database_connection():
@@ -294,6 +394,73 @@ def format_datetime(dt):
         return ""
     return dt.strftime("%Y-%m-%d %H:%M:%S")
 
+# Professional chart theme
+def get_chart_theme():
+    """Return professional chart theme colors"""
+    return {
+        'primary': ['#667eea', '#764ba2', '#f093fb', '#4facfe'],
+        'gradient': ['#667eea', '#7c6beb', '#9259ec', '#a746ed', '#bd33ee'],
+        'success': ['#10b981', '#059669', '#047857'],
+        'warning': ['#f59e0b', '#d97706', '#b45309'],
+        'danger': ['#ef4444', '#dc2626', '#b91c1c'],
+        'neutral': ['#64748b', '#475569', '#334155']
+    }
+
+def apply_chart_template(fig, title=""):
+    """Apply professional template to plotly charts"""
+    fig.update_layout(
+        template='plotly_white',
+        title={
+            'text': title,
+            'font': {'size': 20, 'color': '#1e293b', 'family': 'Arial, sans-serif'},
+            'x': 0.5,
+            'xanchor': 'center'
+        },
+        font={'family': 'Arial, sans-serif', 'size': 12, 'color': '#475569'},
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        margin=dict(t=60, b=40, l=40, r=40),
+        hoverlabel=dict(
+            bgcolor="white",
+            font_size=13,
+            font_family="Arial, sans-serif"
+        ),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            bgcolor='rgba(255, 255, 255, 0.8)',
+            bordercolor='#e2e8f0',
+            borderwidth=1
+        )
+    )
+    fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#f1f5f9')
+    fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#f1f5f9')
+    return fig
+
+def create_metric_card(label, value, icon="📊", delta=None, delta_color="normal"):
+    """Create a professional metric card with HTML/CSS"""
+    delta_html = ""
+    if delta:
+        color = "#10b981" if delta_color == "positive" else "#ef4444" if delta_color == "negative" else "#64748b"
+        arrow = "↑" if delta_color == "positive" else "↓" if delta_color == "negative" else ""
+        delta_html = f'<div style="color: {color}; font-size: 0.9rem; margin-top: 0.5rem;">{arrow} {delta}</div>'
+
+    card_html = f"""
+    <div style="background: white; padding: 1.5rem; border-radius: 10px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); border-left: 4px solid #667eea; height: 100%;">
+        <div style="color: #64748b; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; margin-bottom: 0.5rem;">
+            {icon} {label}
+        </div>
+        <div style="color: #1e293b; font-size: 2rem; font-weight: 700;">
+            {value}
+        </div>
+        {delta_html}
+    </div>
+    """
+    return card_html
+
 def build_folder_hierarchy(folders_df):
     """Build hierarchical folder structure"""
     # Create a dictionary for quick lookup
@@ -341,8 +508,13 @@ def get_folder_path(folder_number, folder_dict):
 
 # Main app
 def main():
-    st.title("📊 DevStride Analytics Dashboard")
-    st.markdown("---")
+    # Professional header
+    st.markdown("""
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 2rem; border-radius: 10px; margin-bottom: 2rem; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+        <h1 style="color: white; font-size: 2.5rem; font-weight: 700; margin: 0; text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);">📊 DevStride Analytics</h1>
+        <p style="color: rgba(255, 255, 255, 0.9); font-size: 1.1rem; margin-top: 0.5rem; margin-bottom: 0;">Real-time Work Item & Budget Intelligence</p>
+    </div>
+    """, unsafe_allow_html=True)
 
     # Load data
     with st.spinner("Loading data..."):
@@ -536,7 +708,11 @@ def main():
             })
             fig = px.pie(status_data, values='Count', names='Status',
                         color='Status',
-                        color_discrete_map={'Completed': '#00CC96', 'In Progress': '#FFA15A'})
+                        color_discrete_map={'Completed': '#10b981', 'In Progress': '#f59e0b'},
+                        hole=0.4)
+            fig = apply_chart_template(fig, "")
+            fig.update_traces(textposition='inside', textinfo='percent+label',
+                            marker=dict(line=dict(color='white', width=2)))
             st.plotly_chart(fig, use_container_width=True)
 
         with col2:
@@ -546,10 +722,13 @@ def main():
             workitems_with_type['work_type_name'] = workitems_with_type['work_type_id'].map(work_type_names)
             type_counts = workitems_with_type['work_type_name'].value_counts()
             if len(type_counts) > 0:
+                colors = get_chart_theme()
                 fig = px.bar(x=type_counts.index, y=type_counts.values,
-                            labels={'x': 'Work Type', 'y': 'Count'},
-                            color=type_counts.values,
-                            color_continuous_scale='Blues')
+                            labels={'x': 'Work Type', 'y': 'Count'})
+                fig.update_traces(marker_color=colors['primary'][0],
+                                marker_line_color='white',
+                                marker_line_width=1.5)
+                fig = apply_chart_template(fig, "")
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info("No work type data available")
