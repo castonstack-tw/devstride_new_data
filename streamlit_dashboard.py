@@ -604,9 +604,16 @@ def main():
     min_date = df_workitems['date_added'].min().date()
     max_date = df_workitems['date_added'].max().date()
 
+    # Calculate rolling Sunday to Sunday for last 2 weeks
+    today = datetime.now().date()
+    # Find the most recent Sunday (or today if it's Sunday)
+    days_since_sunday = (today.weekday() + 1) % 7  # Monday=1, Sunday=0
+    last_sunday = today - timedelta(days=days_since_sunday)
+    two_weeks_ago_sunday = last_sunday - timedelta(days=14)
+
     date_range = st.sidebar.date_input(
         "Select date range",
-        value=(max_date - timedelta(days=90), max_date),
+        value=(two_weeks_ago_sunday, last_sunday),
         min_value=min_date,
         max_value=max_date
     )
@@ -751,11 +758,12 @@ def main():
     st.markdown("---")
 
     # Visualizations
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "📊 Overview",
         "⏱️ Time Tracking",
         "👥 Team Analysis",
         "💰 Budget vs Actuals",
+        "⚠️ Stale Items",
         "📋 Data Table",
         "🔧 Debug/Schema"
     ])
@@ -1637,56 +1645,164 @@ def main():
         )
 
     with tab5:
-        st.header("Filtered Work Items Data")
+        st.header("⚠️ Stale Work Items")
+        st.markdown("Work items with no activity (time logged or updates) in the last 3 days, excluding Done and Icebox items")
 
-        # Prepare display dataframe
-        display_df = filtered_workitems.copy()
-        display_df['work_type'] = display_df['work_type_id'].map(work_type_names)
-        display_df['priority'] = display_df['priority_id'].map(priority_names)
-        display_df['board'] = display_df['board_id'].map(board_names)
-        display_df['lane'] = display_df['lane_id'].map(lane_names)
-        display_df['time_spent'] = display_df['time_spent_seconds'].apply(format_time_detailed)
-        display_df['estimated'] = display_df['likely_estimate'].apply(lambda x: f"{x:.1f}h" if pd.notna(x) else "")
-        display_df['status'] = display_df['completed_at'].apply(lambda x: 'Completed' if pd.notna(x) else 'In Progress')
-        display_df['last_updated'] = display_df['date_updated'].apply(format_datetime)
+        # Calculate 3 days ago
+        three_days_ago = datetime.now() - timedelta(days=3)
 
-        # Select columns to display
-        columns_to_show = [
-            'number', 'title', 'assignee_username', 'author_username',
-            'work_type', 'priority', 'board', 'lane', 'status',
-            'estimated', 'time_spent', 'date_added', 'last_updated', 'completed_at'
-        ]
+        # Get lane names for Done and Icebox
+        done_icebox_lanes = []
+        for lane_id, lane_name in lane_names.items():
+            if 'done' in lane_name.lower() or 'icebox' in lane_name.lower():
+                done_icebox_lanes.append(lane_id)
 
-        display_df = display_df[columns_to_show]
-        display_df.columns = [
-            'Number', 'Title', 'Assignee', 'Author',
-            'Type', 'Priority', 'Board', 'Lane', 'Status',
-            'Estimated', 'Time Spent', 'Created', 'Last Updated', 'Completed'
-        ]
+        # Filter out Done and Icebox items
+        active_items = filtered_workitems[~filtered_workitems['lane_id'].isin(done_icebox_lanes)].copy()
 
-        # Add search functionality
-        search_term = st.text_input("🔍 Search in work items", "")
-        if search_term:
-            mask = display_df.apply(lambda row: row.astype(str).str.contains(search_term, case=False).any(), axis=1)
-            display_df = display_df[mask]
+        # Get recent time entries (last 3 days)
+        recent_time_entries = df_time_entries[
+            pd.to_datetime(df_time_entries['date_added']) >= three_days_ago
+        ]['item_number'].unique()
 
-        st.dataframe(
-            display_df,
-            use_container_width=True,
-            hide_index=True,
-            height=600
-        )
+        # Find stale items: no update in last 3 days AND no time logged in last 3 days
+        stale_items = active_items[
+            (active_items['date_updated'] < three_days_ago) &
+            (~active_items['number'].isin(recent_time_entries))
+        ].copy()
 
-        # Download button
-        csv = display_df.to_csv(index=False)
-        st.download_button(
-            label="📥 Download filtered data as CSV",
-            data=csv,
-            file_name=f"workitems_{start_date}_to_{end_date}.csv",
-            mime="text/csv"
-        )
+        # Add lane and type names
+        stale_items['lane_name'] = stale_items['lane_id'].map(lane_names)
+        stale_items['work_type_name'] = stale_items['work_type_id'].map(work_type_names)
+        stale_items['board_name'] = stale_items['board_id'].map(board_names)
+
+        # Display summary metrics
+        st.subheader("📊 Stale Items Summary")
+        col1, col2, col3, col4 = st.columns(4)
+
+        with col1:
+            st.metric("Total Stale Items", len(stale_items))
+
+        with col2:
+            if len(stale_items) > 0:
+                avg_days_stale = (datetime.now() - stale_items['date_updated'].max()).days
+                st.metric("Oldest Item (days)", avg_days_stale)
+            else:
+                st.metric("Oldest Item (days)", 0)
+
+        with col3:
+            unique_assignees = stale_items['assignee_username'].nunique()
+            st.metric("Affected Assignees", unique_assignees)
+
+        with col4:
+            unique_boards = stale_items['board_name'].nunique()
+            st.metric("Affected Boards", unique_boards)
+
+        st.markdown("---")
+
+        if len(stale_items) > 0:
+            # Breakdown by board
+            st.subheader("🗂️ Stale Items by Board")
+            board_counts = stale_items['board_name'].value_counts()
+
+            if len(board_counts) > 0:
+                colors = get_chart_theme()
+                fig = px.bar(
+                    x=board_counts.values,
+                    y=board_counts.index,
+                    orientation='h',
+                    labels={'x': 'Number of Stale Items', 'y': 'Board'}
+                )
+                fig.update_traces(
+                    marker_color=colors['warning'][0],
+                    marker_line_color='white',
+                    marker_line_width=1.5
+                )
+                fig = apply_chart_template(fig, "")
+                st.plotly_chart(fig, use_container_width=True)
+
+            # Detailed table
+            st.subheader("📋 Stale Items Details")
+
+            # Calculate days since last update
+            stale_items['days_since_update'] = (datetime.now() - stale_items['date_updated']).dt.days
+
+            display_stale = stale_items[[
+                'number', 'title', 'assignee_username', 'board_name',
+                'lane_name', 'work_type_name', 'date_updated', 'days_since_update'
+            ]].copy()
+
+            display_stale['Last Updated'] = display_stale['date_updated'].apply(format_datetime)
+
+            final_display = display_stale[[
+                'number', 'title', 'assignee_username', 'board_name',
+                'lane_name', 'work_type_name', 'Last Updated', 'days_since_update'
+            ]]
+
+            final_display.columns = [
+                'Number', 'Title', 'Assignee', 'Board',
+                'Lane', 'Type', 'Last Updated', 'Days Stale'
+            ]
+
+            # Sort by days stale (descending)
+            final_display = final_display.sort_values('Days Stale', ascending=False)
+
+            st.dataframe(final_display, use_container_width=True, hide_index=True, height=600)
+
+            # Download option
+            csv = final_display.to_csv(index=False)
+            st.download_button(
+                label="📥 Download stale items as CSV",
+                data=csv,
+                file_name=f"stale_items_{datetime.now().strftime('%Y%m%d')}.csv",
+                mime="text/csv"
+            )
+
+        else:
+            st.success("✅ No stale items found! All active work items have been updated in the last 3 days.")
 
     with tab6:
+        st.header("📋 Data Table")
+        st.markdown("Browse all filtered work items in a table format")
+
+        if len(filtered_workitems) > 0:
+            # Create display dataframe
+            display_df = filtered_workitems.copy()
+            display_df['board_name'] = display_df['board_id'].map(board_names)
+            display_df['work_type_name'] = display_df['work_type_id'].map(work_type_names)
+            display_df['lane_name'] = display_df['lane_id'].map(lane_names)
+            display_df['priority_name'] = display_df['priority_id'].map(priority_names)
+
+            # Format time
+            display_df['time_spent_formatted'] = display_df['time_spent_seconds'].apply(format_time_detailed)
+
+            # Select and rename columns
+            table_df = display_df[[
+                'number', 'title', 'assignee_username', 'board_name',
+                'lane_name', 'work_type_name', 'priority_name',
+                'time_spent_formatted', 'completed_at', 'date_added', 'date_updated'
+            ]]
+
+            table_df.columns = [
+                'Number', 'Title', 'Assignee', 'Board',
+                'Lane', 'Type', 'Priority',
+                'Time Spent', 'Completed At', 'Date Added', 'Last Updated'
+            ]
+
+            st.dataframe(table_df, use_container_width=True, hide_index=True, height=600)
+
+            # Download data
+            csv = table_df.to_csv(index=False)
+            st.download_button(
+                label="📥 Download filtered data as CSV",
+                data=csv,
+                file_name=f"workitems_{start_date}_to_{end_date}.csv",
+                mime="text/csv"
+            )
+        else:
+            st.info("No work items match the current filters")
+
+    with tab7:
         st.header("🔧 Debug & Schema Information")
         st.markdown("View database schemas and structure for debugging purposes")
 
