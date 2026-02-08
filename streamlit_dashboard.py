@@ -1684,6 +1684,34 @@ def main():
         stale_items['work_type_name'] = stale_items['work_type_id'].map(work_type_names)
         stale_items['board_name'] = stale_items['board_id'].map(board_names)
 
+        # Debug information expander
+        with st.expander("🔍 Debug: View Filtering Details"):
+            st.markdown("**Filtering Pipeline:**")
+
+            total_in_date_range = len(filtered_workitems)
+            st.write(f"1. Items in selected date range: **{total_in_date_range:,}**")
+
+            done_icebox_count = len(filtered_workitems[filtered_workitems['lane_id'].isin(done_icebox_lanes)])
+            st.write(f"2. Excluded (Done/Icebox lanes): **{done_icebox_count:,}**")
+            st.write(f"   - Lanes excluded: {', '.join([lane_names.get(lid, lid) for lid in done_icebox_lanes])}")
+
+            active_count = len(active_items)
+            st.write(f"3. Active items after lane filter: **{active_count:,}**")
+
+            recently_updated = len(active_items[active_items['date_updated'] >= three_days_ago])
+            st.write(f"4. Recently updated (last 3 days): **{recently_updated:,}**")
+
+            items_with_time = len(active_items[active_items['number'].isin(recent_time_entries)])
+            st.write(f"5. Items with time logged (last 3 days): **{items_with_time:,}**")
+
+            st.write(f"6. **Final stale items: {len(stale_items):,}**")
+
+            st.markdown("---")
+            st.markdown("**💡 Tip:** If items are missing:")
+            st.markdown("- Check if they're in Done/Icebox lanes")
+            st.markdown("- Expand the sidebar date range to see older items")
+            st.markdown("- Check if time was logged or updates made in last 3 days")
+
         # Display summary metrics
         st.subheader("📊 Stale Items Summary")
         col1, col2, col3, col4 = st.columns(4)
