@@ -1656,8 +1656,8 @@ def main():
         st.header("⚠️ Stale Work Items")
         st.markdown("Work items with no activity (time logged or updates) in the last 3 days, excluding Done and Icebox items")
 
-        # Calculate 3 days ago
-        three_days_ago = datetime.now() - timedelta(days=3)
+        # Calculate 3 days ago (timezone-aware to match pandas datetime columns)
+        three_days_ago = pd.Timestamp.now(tz='UTC') - timedelta(days=3)
 
         # Get lane names for Done and Icebox
         done_icebox_lanes = []
