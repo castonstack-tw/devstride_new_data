@@ -23,37 +23,104 @@ def get_database_connection():
 
 engine = get_database_connection()
 
+# Helper function to format JSON fields
+def format_json_field(json_text):
+    """Format JSON text for readable display"""
+    if pd.isna(json_text) or json_text is None or json_text == '':
+        return '—'
+    try:
+        # Try to parse and pretty print JSON
+        json_obj = json.loads(json_text) if isinstance(json_text, str) else json_text
+        if isinstance(json_obj, dict):
+            # For dict, show key-value pairs
+            items = [f"{k}: {v}" for k, v in json_obj.items()]
+            return ' | '.join(items) if items else '—'
+        elif isinstance(json_obj, list):
+            # For list, show items
+            return ', '.join(str(item) for item in json_obj) if json_obj else '—'
+        else:
+            return str(json_obj)
+    except (json.JSONDecodeError, TypeError, AttributeError):
+        # If parsing fails, return as string (might already be formatted)
+        return str(json_text) if json_text else '—'
+
 # Load data with caching
 @st.cache_data(ttl=300)
 def load_workitems():
-    query = """
-    SELECT
-        w.id,
-        w.number,
-        w.title,
-        w.assignee_username,
-        w.author_username,
-        w.completed_at,
-        w.date_added,
-        w.date_updated,
-        w.start_date,
-        w.due_date,
-        w.time_spent_seconds,
-        w.archived,
-        w.work_type_id,
-        w.lane_id,
-        w.board_id,
-        w.priority_id,
-        w.optimistic_estimate,
-        w.likely_estimate,
-        w.pessimistic_estimate,
-        w.point_effort,
-        w.parent_number,
-        w.root_folder_number
-    FROM workitems w
-    WHERE w.organization_id = '33b4e799-b8aa-46cc-9d4d-73c915601515'
-    """
-    df = pd.read_sql(query, engine)
+    # Try query with JSON fields first
+    try:
+        query = """
+        SELECT
+            w.id,
+            w.number,
+            w.title,
+            w.assignee_username,
+            w.author_username,
+            w.completed_at,
+            w.date_added,
+            w.date_updated,
+            w.start_date,
+            w.due_date,
+            w.time_spent_seconds,
+            w.archived,
+            w.work_type_id,
+            w.lane_id,
+            w.board_id,
+            w.priority_id,
+            w.optimistic_estimate,
+            w.likely_estimate,
+            w.pessimistic_estimate,
+            w.point_effort,
+            w.parent_number,
+            w.root_folder_number,
+            CASE
+                WHEN w.custom_fields IS NOT NULL THEN w.custom_fields::text
+                ELSE NULL
+            END as custom_fields_text,
+            CASE
+                WHEN w.description IS NOT NULL THEN w.description::text
+                ELSE NULL
+            END as description_text,
+            CASE
+                WHEN w.tags IS NOT NULL THEN w.tags::text
+                ELSE NULL
+            END as tags_text
+        FROM workitems w
+        WHERE w.organization_id = '33b4e799-b8aa-46cc-9d4d-73c915601515'
+        """
+        df = pd.read_sql(query, engine)
+    except Exception as e:
+        # Fall back to query without JSON fields if they don't exist
+        st.warning(f"Note: Some JSON fields may not be available. Loading basic fields only.")
+        query = """
+        SELECT
+            w.id,
+            w.number,
+            w.title,
+            w.assignee_username,
+            w.author_username,
+            w.completed_at,
+            w.date_added,
+            w.date_updated,
+            w.start_date,
+            w.due_date,
+            w.time_spent_seconds,
+            w.archived,
+            w.work_type_id,
+            w.lane_id,
+            w.board_id,
+            w.priority_id,
+            w.optimistic_estimate,
+            w.likely_estimate,
+            w.pessimistic_estimate,
+            w.point_effort,
+            w.parent_number,
+            w.root_folder_number
+        FROM workitems w
+        WHERE w.organization_id = '33b4e799-b8aa-46cc-9d4d-73c915601515'
+        """
+        df = pd.read_sql(query, engine)
+
     df['date_added'] = pd.to_datetime(df['date_added'])
     df['date_updated'] = pd.to_datetime(df['date_updated'])
     df['completed_at'] = pd.to_datetime(df['completed_at'])
@@ -111,14 +178,46 @@ def load_lanes():
 
 @st.cache_data(ttl=600)
 def load_folders():
-    query = """
-    SELECT id, number, title, parent_number, item_count, date_added, date_updated,
-           hierarchy, hierarchy_path
-    FROM folders
-    WHERE organization_id = '33b4e799-b8aa-46cc-9d4d-73c915601515'
-    AND archived = false
-    """
-    return pd.read_sql(query, engine)
+    # Try query with JSON fields first
+    try:
+        query = """
+        SELECT
+            id,
+            number,
+            title,
+            parent_number,
+            item_count,
+            date_added,
+            date_updated,
+            CASE
+                WHEN hierarchy IS NOT NULL THEN hierarchy::text
+                ELSE NULL
+            END as hierarchy_text,
+            CASE
+                WHEN hierarchy_path IS NOT NULL THEN hierarchy_path::text
+                ELSE NULL
+            END as hierarchy_path_text
+        FROM folders
+        WHERE organization_id = '33b4e799-b8aa-46cc-9d4d-73c915601515'
+        AND archived = false
+        """
+        return pd.read_sql(query, engine)
+    except Exception:
+        # Fall back to query without JSON fields if they don't exist
+        query = """
+        SELECT
+            id,
+            number,
+            title,
+            parent_number,
+            item_count,
+            date_added,
+            date_updated
+        FROM folders
+        WHERE organization_id = '33b4e799-b8aa-46cc-9d4d-73c915601515'
+        AND archived = false
+        """
+        return pd.read_sql(query, engine)
 
 @st.cache_data(ttl=3600)
 def get_database_schema():
