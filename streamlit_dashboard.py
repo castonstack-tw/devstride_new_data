@@ -611,9 +611,17 @@ def main():
     last_sunday = today - timedelta(days=days_since_sunday)
     two_weeks_ago_sunday = last_sunday - timedelta(days=14)
 
+    # Ensure calculated dates are within data range
+    default_end = min(last_sunday, max_date)
+    default_start = max(two_weeks_ago_sunday, min_date)
+    # If start would be after end, use last 14 days of available data
+    if default_start > default_end:
+        default_end = max_date
+        default_start = max(max_date - timedelta(days=14), min_date)
+
     date_range = st.sidebar.date_input(
         "Select date range",
-        value=(two_weeks_ago_sunday, last_sunday),
+        value=(default_start, default_end),
         min_value=min_date,
         max_value=max_date
     )
