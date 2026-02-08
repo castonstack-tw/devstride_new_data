@@ -15,89 +15,62 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Professional styling
+# Professional styling with dark mode support
 st.markdown("""
 <style>
-    /* Main dashboard styling */
-    .main {
-        background-color: #f8f9fa;
-    }
+    /* ============= LIGHT MODE (Default) ============= */
 
-    /* Custom header styling */
-    .dashboard-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 2rem;
-        border-radius: 10px;
-        margin-bottom: 2rem;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-
-    /* Metric cards */
-    [data-testid="stMetricValue"] {
-        font-size: 2rem;
-        font-weight: 600;
-        color: #1e293b;
-    }
-
-    [data-testid="stMetricLabel"] {
-        font-size: 0.95rem;
-        font-weight: 500;
-        color: #64748b;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    /* Tab styling */
+    /* Tab styling - Light mode */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
-        background-color: white;
         border-radius: 10px;
         padding: 10px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     }
 
     .stTabs [data-baseweb="tab"] {
         height: 50px;
         padding: 0 24px;
-        background-color: #f8f9fa;
         border-radius: 8px;
-        color: #475569;
         font-weight: 500;
+        border: none;
     }
 
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
         color: white !important;
         font-weight: 600;
     }
 
-    /* Sidebar styling */
-    [data-testid="stSidebar"] {
-        background-color: #ffffff;
-        border-right: 1px solid #e2e8f0;
+    /* Metric cards */
+    [data-testid="stMetricLabel"] {
+        font-size: 0.95rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    [data-testid="stMetricValue"] {
+        font-size: 2rem;
+        font-weight: 600;
     }
 
     /* Data tables */
     .dataframe thead tr th {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
         color: white !important;
         font-weight: 600;
         text-transform: uppercase;
         font-size: 0.85rem;
         padding: 12px !important;
-    }
-
-    .dataframe tbody tr:nth-child(even) {
-        background-color: #f8f9fa;
-    }
-
-    .dataframe tbody tr:hover {
-        background-color: #e2e8f0;
+        border: none !important;
     }
 
     /* Section headers */
+    h1, h2, h3 {
+        font-weight: 700;
+    }
+
     h2 {
-        color: #1e293b;
         border-bottom: 3px solid #667eea;
         padding-bottom: 0.5rem;
         margin-top: 2rem;
@@ -105,12 +78,108 @@ st.markdown("""
 
     /* Buttons */
     .stDownloadButton button {
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        color: white;
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+        color: white !important;
         border: none;
         border-radius: 8px;
         padding: 0.5rem 2rem;
         font-weight: 600;
+    }
+
+    .stButton button {
+        border-radius: 8px;
+        font-weight: 600;
+        padding: 0.5rem 2rem;
+    }
+
+    /* Expanders */
+    div[data-testid="stExpander"] {
+        border-radius: 10px;
+        border: 1px solid rgba(102, 126, 234, 0.2);
+    }
+
+    /* Info/Alert boxes */
+    .stAlert {
+        border-radius: 8px;
+        border-left: 4px solid #667eea;
+    }
+
+    /* ============= DARK MODE OVERRIDES ============= */
+
+    /* Dark mode detection for Streamlit */
+    [data-testid="stAppViewContainer"][data-theme="dark"] .main,
+    [data-testid="stApp"][class*="dark"] .main {
+        background-color: #0e1117 !important;
+    }
+
+    /* Tab styling - Dark mode */
+    [data-testid="stApp"][class*="dark"] .stTabs [data-baseweb="tab-list"],
+    [data-theme="dark"] .stTabs [data-baseweb="tab-list"] {
+        background-color: rgba(38, 39, 48, 0.5);
+    }
+
+    [data-testid="stApp"][class*="dark"] .stTabs [data-baseweb="tab"],
+    [data-theme="dark"] .stTabs [data-baseweb="tab"] {
+        background-color: rgba(38, 39, 48, 0.8);
+        color: #a0a0a0;
+    }
+
+    /* Sidebar - Dark mode */
+    [data-testid="stApp"][class*="dark"] [data-testid="stSidebar"],
+    [data-theme="dark"] [data-testid="stSidebar"] {
+        background-color: #0e1117;
+        border-right: 1px solid #262730;
+    }
+
+    /* Data tables - Dark mode */
+    [data-testid="stApp"][class*="dark"] .dataframe tbody tr:nth-child(even),
+    [data-theme="dark"] .dataframe tbody tr:nth-child(even) {
+        background-color: rgba(38, 39, 48, 0.3);
+    }
+
+    [data-testid="stApp"][class*="dark"] .dataframe tbody tr:hover,
+    [data-theme="dark"] .dataframe tbody tr:hover {
+        background-color: rgba(102, 126, 234, 0.15);
+    }
+
+    [data-testid="stApp"][class*="dark"] .dataframe,
+    [data-theme="dark"] .dataframe {
+        color: #fafafa;
+    }
+
+    [data-testid="stApp"][class*="dark"] .dataframe tbody,
+    [data-theme="dark"] .dataframe tbody {
+        background-color: rgba(38, 39, 48, 0.5);
+    }
+
+    /* Expanders - Dark mode */
+    [data-testid="stApp"][class*="dark"] div[data-testid="stExpander"],
+    [data-theme="dark"] div[data-testid="stExpander"] {
+        background-color: rgba(38, 39, 48, 0.5);
+        border: 1px solid rgba(102, 126, 234, 0.3);
+    }
+
+    /* Metric cards - Dark mode text */
+    [data-testid="stApp"][class*="dark"] [data-testid="stMetricValue"],
+    [data-theme="dark"] [data-testid="stMetricValue"] {
+        color: #fafafa;
+    }
+
+    [data-testid="stApp"][class*="dark"] [data-testid="stMetricLabel"],
+    [data-theme="dark"] [data-testid="stMetricLabel"] {
+        color: #a0a0a0;
+    }
+
+    /* Universal dark mode fallback */
+    @media (prefers-color-scheme: dark) {
+        .stTabs [data-baseweb="tab"]:not([aria-selected="true"]) {
+            background-color: rgba(38, 39, 48, 0.8) !important;
+            color: #a0a0a0 !important;
+        }
+
+        .dataframe tbody tr:nth-child(even) {
+            background-color: rgba(38, 39, 48, 0.3) !important;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
