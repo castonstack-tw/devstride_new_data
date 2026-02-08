@@ -1693,7 +1693,7 @@ def main():
 
         with col2:
             if len(stale_items) > 0:
-                avg_days_stale = (datetime.now() - stale_items['date_updated'].max()).days
+                avg_days_stale = (pd.Timestamp.now(tz='UTC') - stale_items['date_updated'].max()).days
                 st.metric("Oldest Item (days)", avg_days_stale)
             else:
                 st.metric("Oldest Item (days)", 0)
@@ -1733,7 +1733,7 @@ def main():
             st.subheader("📋 Stale Items Details")
 
             # Calculate days since last update
-            stale_items['days_since_update'] = (datetime.now() - stale_items['date_updated']).dt.days
+            stale_items['days_since_update'] = (pd.Timestamp.now(tz='UTC') - stale_items['date_updated']).dt.days
 
             display_stale = stale_items[[
                 'number', 'title', 'assignee_username', 'board_name',
