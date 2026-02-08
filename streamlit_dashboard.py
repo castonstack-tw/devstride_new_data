@@ -600,9 +600,9 @@ def main():
     st.sidebar.header("🔍 Filters")
 
     # Date range filter
-    st.sidebar.subheader("Date Range")
-    min_date = df_workitems['date_added'].min().date()
-    max_date = df_workitems['date_added'].max().date()
+    st.sidebar.subheader("Date Range (Last Updated)")
+    min_date = df_workitems['date_updated'].min().date()
+    max_date = df_workitems['date_updated'].max().date()
 
     # Calculate rolling Sunday to Sunday for last 2 weeks
     today = datetime.now().date()
@@ -692,10 +692,10 @@ def main():
     # Exclude archived workitems
     filtered_workitems = filtered_workitems[filtered_workitems['archived'] != True]
 
-    # Date filter
+    # Date filter (by last updated date)
     filtered_workitems = filtered_workitems[
-        (filtered_workitems['date_added'].dt.date >= start_date) &
-        (filtered_workitems['date_added'].dt.date <= end_date)
+        (filtered_workitems['date_updated'].dt.date >= start_date) &
+        (filtered_workitems['date_updated'].dt.date <= end_date)
     ]
 
     # User filters
