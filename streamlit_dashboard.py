@@ -388,6 +388,23 @@ def load_folders():
         """
         return pd.read_sql(query, engine)
 
+@st.cache_data(ttl=300)
+def load_comments():
+    """Load comments data"""
+    query = """
+    SELECT
+        id,
+        item_number,
+        author_username,
+        date_added,
+        text
+    FROM comments
+    WHERE organization_id = '33b4e799-b8aa-46cc-9d4d-73c915601515'
+    """
+    df = pd.read_sql(query, engine)
+    df['date_added'] = pd.to_datetime(df['date_added'])
+    return df
+
 @st.cache_data(ttl=3600)
 def get_database_schema():
     """Get schema information for all tables"""
@@ -589,6 +606,7 @@ def main():
     with st.spinner("Loading data..."):
         df_workitems = load_workitems()
         df_time_entries = load_time_entries()
+        df_comments = load_comments()
         df_users = load_users()
         df_work_types = load_work_types()
         df_priorities = load_priorities()
@@ -1654,7 +1672,7 @@ def main():
 
     with tab5:
         st.header("⚠️ Stale Work Items")
-        st.markdown("Work items with no activity (time logged or updates) in the last 3 days, excluding Done and Icebox items")
+        st.markdown("Work items with no activity (time logged, comments, or updates) in the last 3 days, excluding Done and Icebox items")
 
         # Calculate 3 days ago (timezone-aware to match pandas datetime columns)
         three_days_ago = pd.Timestamp.now(tz='UTC') - timedelta(days=3)
@@ -1673,10 +1691,16 @@ def main():
             pd.to_datetime(df_time_entries['date_added']) >= three_days_ago
         ]['item_number'].unique()
 
-        # Find stale items: no update in last 3 days AND no time logged in last 3 days
+        # Get recent comments (last 3 days)
+        recent_comments = df_comments[
+            pd.to_datetime(df_comments['date_added']) >= three_days_ago
+        ]['item_number'].unique()
+
+        # Find stale items: no update in last 3 days AND no time logged AND no comments in last 3 days
         stale_items = active_items[
             (active_items['date_updated'] < three_days_ago) &
-            (~active_items['number'].isin(recent_time_entries))
+            (~active_items['number'].isin(recent_time_entries)) &
+            (~active_items['number'].isin(recent_comments))
         ].copy()
 
         # Add lane and type names
@@ -1704,13 +1728,16 @@ def main():
             items_with_time = len(active_items[active_items['number'].isin(recent_time_entries)])
             st.write(f"5. Items with time logged (last 3 days): **{items_with_time:,}**")
 
-            st.write(f"6. **Final stale items: {len(stale_items):,}**")
+            items_with_comments = len(active_items[active_items['number'].isin(recent_comments)])
+            st.write(f"6. Items with comments added (last 3 days): **{items_with_comments:,}**")
+
+            st.write(f"7. **Final stale items: {len(stale_items):,}**")
 
             st.markdown("---")
             st.markdown("**💡 Tip:** If items are missing:")
             st.markdown("- Check if they're in Done/Icebox lanes")
             st.markdown("- Expand the sidebar date range to see older items")
-            st.markdown("- Check if time was logged or updates made in last 3 days")
+            st.markdown("- Check if time was logged, comments added, or updates made in last 3 days")
 
         # Display summary metrics
         st.subheader("📊 Stale Items Summary")
