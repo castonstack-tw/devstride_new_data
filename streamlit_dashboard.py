@@ -805,12 +805,13 @@ def main():
     st.markdown("---")
 
     # Visualizations
-    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
         "📊 Overview",
         "⏱️ Time Tracking",
         "👥 Team Analysis",
         "💰 Budget vs Actuals",
         "⚠️ Stale Items",
+        "🔍 Workitem Checker",
         "📋 Data Table",
         "🔧 Debug/Schema"
     ])
@@ -1693,7 +1694,7 @@ def main():
 
     with tab5:
         st.header("⚠️ Stale Work Items")
-        st.markdown("Work items with no activity (time logged, comments, or updates) in the last 3 days, excluding Done and Icebox items")
+        st.markdown("Work items with no activity (time logged or comments) in the last 3 days, excluding Done and Icebox items")
 
         # Calculate 3 days ago (timezone-aware to match pandas datetime columns)
         three_days_ago = pd.Timestamp.now(tz='UTC') - timedelta(days=3)
@@ -1719,9 +1720,8 @@ def main():
             pd.to_datetime(df_comments['date_added']) >= three_days_ago_naive
         ]['item_number'].unique()
 
-        # Find stale items: no update in last 3 days AND no time logged AND no comments in last 3 days
+        # Find stale items: no time logged AND no comments in last 3 days
         stale_items = active_items[
-            (active_items['date_updated'] < three_days_ago) &
             (~active_items['number'].isin(recent_time_entries)) &
             (~active_items['number'].isin(recent_comments))
         ].copy()
@@ -1745,16 +1745,13 @@ def main():
             active_count = len(active_items)
             st.write(f"3. Active items after lane filter: **{active_count:,}**")
 
-            recently_updated = len(active_items[active_items['date_updated'] >= three_days_ago])
-            st.write(f"4. Recently updated (last 3 days): **{recently_updated:,}**")
-
             items_with_time = len(active_items[active_items['number'].isin(recent_time_entries)])
-            st.write(f"5. Items with time logged (last 3 days): **{items_with_time:,}**")
+            st.write(f"4. Items with time logged (last 3 days): **{items_with_time:,}**")
 
             items_with_comments = len(active_items[active_items['number'].isin(recent_comments)])
-            st.write(f"6. Items with comments added (last 3 days): **{items_with_comments:,}**")
+            st.write(f"5. Items with comments added (last 3 days): **{items_with_comments:,}**")
 
-            st.write(f"7. **Final stale items: {len(stale_items):,}**")
+            st.write(f"6. **Final stale items: {len(stale_items):,}**")
 
             st.markdown("---")
             st.markdown("**💡 Tip:** If items are missing:")
@@ -1888,7 +1885,174 @@ def main():
         else:
             st.info("No work items match the current filters")
 
+    with tab6:
+        st.header("🔍 Workitem Checker")
+        st.markdown("Look up a specific workitem to see all comments and time entries")
+
+        # Input for workitem number
+        workitem_number = st.text_input("Enter Workitem Number (e.g., W-1234):", "")
+
+        if workitem_number:
+            # Find the workitem
+            workitem = df_workitems[df_workitems['number'] == workitem_number]
+
+            if len(workitem) > 0:
+                item = workitem.iloc[0]
+
+                # Display workitem details
+                st.subheader(f"📝 {item['title']}")
+
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    st.metric("Number", item['number'])
+                with col2:
+                    board_name = board_names.get(item['board_id'], 'Unknown')
+                    st.metric("Board", board_name)
+                with col3:
+                    lane_name = lane_names.get(item['lane_id'], 'Unknown')
+                    st.metric("Lane", lane_name)
+                with col4:
+                    st.metric("Assignee", item['assignee_username'] if pd.notna(item['assignee_username']) else 'Unassigned')
+
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    work_type = work_type_names.get(item['work_type_id'], 'Unknown')
+                    st.metric("Type", work_type)
+                with col2:
+                    st.metric("Time Spent", format_time_detailed(item['time_spent_seconds']))
+                with col3:
+                    status = 'Completed' if pd.notna(item['completed_at']) else 'In Progress'
+                    st.metric("Status", status)
+
+                st.markdown("---")
+
+                # Get comments for this workitem
+                workitem_comments = df_comments[df_comments['item_number'] == workitem_number].sort_values('date_added', ascending=False)
+
+                # Get time entries for this workitem
+                workitem_time = df_time_entries[df_time_entries['item_number'] == workitem_number].sort_values('start_date', ascending=False)
+
+                # Display comments
+                st.subheader(f"💬 Comments ({len(workitem_comments)})")
+                if len(workitem_comments) > 0:
+                    for idx, comment in workitem_comments.iterrows():
+                        with st.expander(f"{comment['author_username']} - {format_datetime(comment['date_added'])}"):
+                            st.markdown(f"**{comment['text']}**")
+                else:
+                    st.info("No comments on this workitem")
+
+                st.markdown("---")
+
+                # Display time entries
+                st.subheader(f"⏱️ Time Entries ({len(workitem_time)})")
+                if len(workitem_time) > 0:
+                    time_df = workitem_time[[
+                        'author_username', 'start_date', 'end_date', 'length_seconds',
+                        'description', 'completed', 'manual'
+                    ]].copy()
+
+                    time_df['Duration'] = time_df['length_seconds'].apply(format_time_detailed)
+                    time_df['Start'] = time_df['start_date'].apply(format_datetime)
+                    time_df['End'] = time_df['end_date'].apply(format_datetime)
+                    time_df['Type'] = time_df['manual'].apply(lambda x: 'Manual' if x else 'Timer')
+                    time_df['Status'] = time_df['completed'].apply(lambda x: '✅ Complete' if x else '⏳ Running')
+
+                    display_time = time_df[[
+                        'author_username', 'Start', 'End', 'Duration',
+                        'Type', 'Status', 'description'
+                    ]]
+                    display_time.columns = [
+                        'User', 'Start Time', 'End Time', 'Duration',
+                        'Entry Type', 'Status', 'Description'
+                    ]
+
+                    st.dataframe(display_time, use_container_width=True, hide_index=True, height=400)
+
+                    # Total time
+                    total_time = workitem_time['length_seconds'].sum()
+                    st.metric("Total Time Logged", format_time_detailed(total_time))
+                else:
+                    st.info("No time entries for this workitem")
+
+                # Activity timeline
+                st.markdown("---")
+                st.subheader("📊 Activity Timeline")
+
+                # Combine comments and time entries
+                activity = []
+
+                for idx, comment in workitem_comments.iterrows():
+                    activity.append({
+                        'date': comment['date_added'],
+                        'type': 'Comment',
+                        'user': comment['author_username'],
+                        'details': comment['text'][:100] + '...' if len(str(comment['text'])) > 100 else comment['text']
+                    })
+
+                for idx, time_entry in workitem_time.iterrows():
+                    activity.append({
+                        'date': time_entry['start_date'],
+                        'type': 'Time Entry',
+                        'user': time_entry['author_username'],
+                        'details': f"{format_time_detailed(time_entry['length_seconds'])} - {time_entry['description']}"
+                    })
+
+                if activity:
+                    activity_df = pd.DataFrame(activity).sort_values('date', ascending=False)
+                    activity_df['Date'] = activity_df['date'].apply(format_datetime)
+                    final_activity = activity_df[['Date', 'type', 'user', 'details']]
+                    final_activity.columns = ['Date', 'Type', 'User', 'Details']
+                    st.dataframe(final_activity, use_container_width=True, hide_index=True, height=400)
+                else:
+                    st.info("No activity recorded for this workitem")
+
+            else:
+                st.warning(f"Workitem '{workitem_number}' not found")
+        else:
+            st.info("👆 Enter a workitem number above to see its details, comments, and time entries")
+
     with tab7:
+        st.header("📋 Data Table")
+        st.markdown("Browse all filtered work items in a table format")
+
+        if len(filtered_workitems) > 0:
+            # Create display dataframe
+            display_df = filtered_workitems.copy()
+            display_df['board_name'] = display_df['board_id'].map(board_names)
+            display_df['work_type_name'] = display_df['work_type_id'].map(work_type_names)
+            display_df['lane_name'] = display_df['lane_id'].map(lane_names)
+            display_df['priority_name'] = display_df['priority_id'].map(priority_names)
+
+            # Format time
+            display_df['time_spent_formatted'] = display_df['time_spent_seconds'].apply(format_time_detailed)
+
+            # Select and rename columns
+            table_df = display_df[[
+                'number', 'title', 'assignee_username', 'board_name',
+                'lane_name', 'work_type_name', 'priority_name',
+                'time_spent_formatted', 'completed_at', 'date_added', 'date_updated'
+            ]]
+
+            table_df.columns = [
+                'Number', 'Title', 'Assignee', 'Board',
+                'Lane', 'Type', 'Priority',
+                'Time Spent', 'Completed At', 'Date Added', 'Last Updated'
+            ]
+
+            st.dataframe(table_df, use_container_width=True, hide_index=True, height=600)
+
+            # Download data
+            csv = table_df.to_csv(index=False)
+            st.download_button(
+                label="📥 Download filtered data as CSV",
+                data=csv,
+                file_name=f"workitems_{start_date}_to_{end_date}.csv",
+                mime="text/csv"
+            )
+        else:
+            st.info("No work items match the current filters")
+
+    with tab8:
         st.header("🔧 Debug & Schema Information")
         st.markdown("View database schemas and structure for debugging purposes")
 
