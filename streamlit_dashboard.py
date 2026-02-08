@@ -1689,7 +1689,8 @@ def main():
             label="📥 Download Budget Analysis as CSV",
             data=csv,
             file_name=f"budget_analysis_{start_date}_to_{end_date}.csv",
-            mime="text/csv"
+            mime="text/csv",
+            key="download_budget_analysis"
         )
 
     with tab5:
@@ -1838,7 +1839,8 @@ def main():
                 label="📥 Download stale items as CSV",
                 data=csv,
                 file_name=f"stale_items_{datetime.now().strftime('%Y%m%d')}.csv",
-                mime="text/csv"
+                mime="text/csv",
+                key="download_stale_items"
             )
 
         else:
@@ -2047,7 +2049,8 @@ def main():
                 label="📥 Download filtered data as CSV",
                 data=csv,
                 file_name=f"workitems_{start_date}_to_{end_date}.csv",
-                mime="text/csv"
+                mime="text/csv",
+                key="download_data_table"
             )
         else:
             st.info("No work items match the current filters")
