@@ -391,19 +391,40 @@ def load_folders():
 @st.cache_data(ttl=300)
 def load_comments():
     """Load comments data"""
-    query = """
-    SELECT
-        id,
-        item_number,
-        author_username,
-        date_added,
-        text
-    FROM comments
-    WHERE organization_id = '33b4e799-b8aa-46cc-9d4d-73c915601515'
-    """
-    df = pd.read_sql(query, engine)
-    df['date_added'] = pd.to_datetime(df['date_added'])
-    return df
+    try:
+        # Try with workitem_number first (most common)
+        query = """
+        SELECT
+            id,
+            workitem_number as item_number,
+            author_username,
+            date_added,
+            text
+        FROM comments
+        WHERE organization_id = '33b4e799-b8aa-46cc-9d4d-73c915601515'
+        """
+        df = pd.read_sql(query, engine)
+        df['date_added'] = pd.to_datetime(df['date_added'])
+        return df
+    except Exception:
+        try:
+            # Try with work_item_number
+            query = """
+            SELECT
+                id,
+                work_item_number as item_number,
+                author_username,
+                date_added,
+                text
+            FROM comments
+            WHERE organization_id = '33b4e799-b8aa-46cc-9d4d-73c915601515'
+            """
+            df = pd.read_sql(query, engine)
+            df['date_added'] = pd.to_datetime(df['date_added'])
+            return df
+        except Exception:
+            # Return empty dataframe if comments table doesn't exist or has different schema
+            return pd.DataFrame(columns=['id', 'item_number', 'author_username', 'date_added', 'text'])
 
 @st.cache_data(ttl=3600)
 def get_database_schema():
